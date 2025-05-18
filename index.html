@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NL to Python Code Executor</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(120deg, #6a11cb, #2575fc);
+      color: white;
+      text-align: center;
+      padding: 40px;
+    }
+    textarea, input {
+      width: 60%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-family: monospace;
+    }
+    button {
+      background: white;
+      color: #6a11cb;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .section {
+      background: #ffffff22;
+      margin: 20px auto;
+      padding: 20px;
+      border-radius: 12px;
+      width: 70%;
+      text-align: left;
+    }
+    .section h3 {
+      margin-bottom: 10px;
+      color: gold;
+    }
+    pre {
+      background: #1e1e2f;
+      padding: 10px;
+      border-radius: 8px;
+      color: #00ffcc;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Natural Language to Python Code Executor</h1>
+
+  <textarea id="input" rows="3" placeholder="Enter natural language instruction..."></textarea><br>
+  <button onclick="generateCode()">Generate & Execute</button>
+
+  <div class="section">
+    <h3>Generated Python Code</h3>
+    <pre id="code"></pre>
+  </div>
+
+  <div class="section">
+    <h3>Output</h3>
+    <pre id="output"></pre>
+  </div>
+   <footer>MADE BY STUDENTS OF GRAPHIC ERA (DIYA AND TEAM)!</footer>
+  <script>
+    function generateCode() {
+      const command = document.getElementById("input").value;
+      fetch("http://127.0.0.1:5000/api/parse_execute", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ command: command })
+      })
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById("code").textContent = data.generated_code;
+        document.getElementById("output").textContent = data.output;
+      })
+      .catch(error => {
+        document.getElementById("code").textContent = "Error";
+        document.getElementById("output").textContent = "Fetch failed: " + error;
+      });
+    }
+  </script>
+
+</body>
+</html>
