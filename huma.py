@@ -42,9 +42,9 @@ def parsing(command: str) -> str:
             condition_text = condition_text.replace("is greater than", ">").replace("is less than", "<")
             return (
                 f"if {condition_text.strip()}:\n"
-                f"    print('{out1.strip()}')\n"
+                f"print('{out1.strip()}')\n"
                 f"else:\n"
-                f"    print('{out2.strip()}')"
+                f"print('{out2.strip()}')"
             )
 
     # Print text multiple times
@@ -102,9 +102,9 @@ def parsing(command: str) -> str:
         return (
             f"num = {num}\n"
             f"def is_armstrong(n):\n"
-            f"    digits = [int(d) for d in str(n)]\n"
-            f"    power = len(digits)\n"
-            f"    return sum([d ** power for d in digits]) == n\n"
+            f"digits = [int(d) for d in str(n)]\n"
+            f"power = len(digits)\n"
+            f"return sum([d ** power for d in digits]) == n\n"
             f"print(is_armstrong(num))"
         )
 
@@ -114,7 +114,7 @@ def parsing(command: str) -> str:
         return (
             f"num = {num}\n"
             f"def is_palindrome(n):\n"
-            f"    return str(n) == str(n)[::-1]\n"
+            f"return str(n) == str(n)[::-1]\n"
             f"print(is_palindrome(num))"
         )
 
