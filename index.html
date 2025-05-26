@@ -1,1 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NL to Python Code Executor</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(120deg, #ffffff, #9bd6cc);
+      color: white;
+      text-align: center;
+      padding: 40px;
+      margin: 0;
+    }
+
+    textarea, input {
+      width: 60%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-family: monospace;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    button {
+      background: white;
+      color: #6a11cb;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.3s;
+      margin: 5px;
+    }
+
+    button:hover {
+      background: #f0f0f0;
+    }
+
+    .container {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-top: 30px;
+    }
+
+    .section {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      padding: 20px;
+      border-radius: 16px;
+      width: 30%;
+      min-width: 280px;
+      transition: transform 0.2s ease;
+    }
+
+    .section:hover {
+      transform: scale(1.02);
+    }
+
+    .section h3 {
+      margin-bottom: 10px;
+      color: #0a0644;
+      border-bottom: 2px solid rgb(11, 3, 24);
+      padding-bottom: 5px;
+    }
+
+    pre {
+      background: #1c1c27;
+      padding: 10px;
+      border-radius: 8px;
+      color: #00ffcc;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+
+    ul.ast-tree {
+      text-align: left;
+      list-style: none;
+      padding-left: 20px;
+      font-family: monospace;
+      color: #101111;
+    }
+
+    ul.ast-tree li {
+      cursor: default;
+      margin-bottom: 5px;
+    }
+
+    ul.ast-tree li.collapsible > span::before {
+      content: "▼ ";
+      cursor: pointer;
+    }
+
+    ul.ast-tree li.collapsed > span::before {
+      content: "▶ ";
+      cursor: pointer;
+    }
+
+    ul.ast-tree li.collapsed > ul {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h1 style="color: #470842; font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;">
+    NATURAL LANGUAGE COMPILER
+  </h1>
+
+  <textarea id="input" rows="3" placeholder="Enter natural language instruction..."></textarea><br>
+  <button onclick="generateCode()">Generate & Execute</button>
+
+  <div class="container">
+    <div class="section">
+      <h3>Generated Python Code</h3>
+      <pre id="code">Your code will appear here...</pre>
+    </div>
+
+    <div class="section">
+      <h3>Output</h3>
+      <pre id="output">Your output will appear here...</pre>
+    </div>
+
+    <div class="section">
+      <h3>AST</h3>
+      <div id="ast" style="color: #470842;">AST will appear here...</div>
+    </div>
+  </div>
+
+  <script>
+    let latestCommand = "";
+
+    function generateCode() {
+      const command = document.getElementById("input").value;
+      latestCommand = command;
+
+      fetch("http://127.0.0.1:5000/api/parse_execute", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ command: command })
+      })
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById("code").textContent = data.generated_code;
+        document.getElementById("output").textContent = data.output;
+        renderASTTree(data.ast);
+      })
+      .catch(error => {
+        document.getElementById("code").textContent = "Error generating code.";
+        document.getElementById("output").textContent = "Fetch failed: " + error;
+        document.getElementById("ast").textContent = "AST fetch failed.";
+      });
+    }
+
+    function renderASTTree(astText) {
+      const lines = astText.split("\n");
+      const root = { label: "AST", children: [] };
+      const stack = [{ node: root, indent: -1 }];
+
+      for (let line of lines) {
+        const indent = line.search(/\S/);
+        const label = line.trim();
+        const item = { label, children: [] };
+
+        while (stack.length && indent <= stack[stack.length - 1].indent) {
+          stack.pop();
+        }
+
+        stack[stack.length - 1].node.children.push(item);
+        stack.push({ node: item, indent });
+      }
+
+      const container = document.getElementById("ast");
+      container.innerHTML = "";
+      container.appendChild(buildTreeHTML(root.children[0]));
+    }
+
+    function buildTreeHTML(node) {
+      const li = document.createElement("li");
+      const span = document.createElement("span");
+      span.textContent = node.label;
+      li.appendChild(span);
+
+      if (node.children.length) {
+        li.classList.add("collapsible");
+        const ul = document.createElement("ul");
+        ul.classList.add("ast-tree");
+        for (let child of node.children) {
+          ul.appendChild(buildTreeHTML(child));
+        }
+        li.appendChild(ul);
+
+        li.addEventListener("click", (e) => {
+          e.stopPropagation();
+          li.classList.toggle("collapsed");
+        });
+      }
+
+      return li;
+    }
+  </script>
+
+</body>
+</html>
 
