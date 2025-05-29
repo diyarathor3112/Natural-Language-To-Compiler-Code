@@ -2,50 +2,75 @@ from flask import Flask, request, jsonify
 import re
 import io
 import contextlib
-import ast
-import astpretty
+import ast   
+
 
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-
 def format_ast(node, indent=""):
+    lines = []
+
+    def add_line(label):
+        lines.append(f"{indent}{label}")
+
     if isinstance(node, ast.Module):
-        lines = ["Module"]
+        add_line("Module")
         for stmt in node.body:
             lines.append(format_ast(stmt, indent + "  "))
-        return "\n".join(lines)
-
     elif isinstance(node, ast.Assign):
-        target_names = [t.id for t in node.targets if isinstance(t, ast.Name)]
-        value = format_ast(node.value, indent + "  ")
-        return f"{indent}Assign\n{indent}  targets: {target_names}\n{indent}  value: {value}"
-
+        add_line("Assign")
+        targets = ", ".join([t.id for t in node.targets if isinstance(t, ast.Name)])
+        lines.append(f"{indent}  targets: [{targets}]")
+        lines.append(f"{indent}  value:")
+        lines.append(format_ast(node.value, indent + "    "))
     elif isinstance(node, ast.Expr):
-        return f"{indent}Expr\n{format_ast(node.value, indent + '  ')}"
-
+        add_line("Expr")
+        lines.append(format_ast(node.value, indent + "  "))
     elif isinstance(node, ast.Call):
-        func_name = format_ast(node.func, "")
-        args = [format_ast(arg, indent + "    ") for arg in node.args]
-        return f"{indent}Call\n{indent}  func: {func_name}\n{indent}  args:\n" + "\n".join(args)
-
+        add_line("Call")
+        lines.append(f"{indent}  func:")
+        lines.append(format_ast(node.func, indent + "    "))
+        lines.append(f"{indent}  args:")
+        for arg in node.args:
+            lines.append(format_ast(arg, indent + "    "))
     elif isinstance(node, ast.Name):
-        return node.id
-
+        add_line(f"Name: {node.id}")
     elif isinstance(node, ast.Constant):
-        return f"{indent}{repr(node.value)}"
-
-    elif isinstance(node, ast.List):
-        elts = [format_ast(e, indent + "    ") for e in node.elts]
-        return f"{indent}List\n{indent}  elts:\n" + "\n".join(elts)
-
-    elif isinstance(node, ast.Attribute):
-        return f"{format_ast(node.value)}.{node.attr}"
-
+        add_line(f"Constant: {repr(node.value)}")
+    elif isinstance(node, ast.Tuple):
+        add_line("Tuple")
+        for elt in node.elts:
+            lines.append(format_ast(elt, indent + "  "))
+    elif isinstance(node, ast.For):
+        add_line("For")
+        lines.append(f"{indent}  target:")
+        lines.append(format_ast(node.target, indent + "    "))
+        lines.append(f"{indent}  iter:")
+        lines.append(format_ast(node.iter, indent + "    "))
+        lines.append(f"{indent}  body:")
+        for stmt in node.body:
+            lines.append(format_ast(stmt, indent + "    "))
+    elif isinstance(node, ast.BinOp):
+        add_line(f"BinOp: {type(node.op).__name__}")
+        lines.append(f"{indent}  left:")
+        lines.append(format_ast(node.left, indent + "    "))
+        lines.append(f"{indent}  right:")
+        lines.append(format_ast(node.right, indent + "    "))
+    elif isinstance(node, ast.AugAssign):
+        add_line("AugAssign")
+        lines.append(f"{indent}  target:")
+        lines.append(format_ast(node.target, indent + "    "))
+        lines.append(f"{indent}  op: {type(node.op).__name__}")
+        lines.append(f"{indent}  value:")
+        lines.append(format_ast(node.value, indent + "    "))
     else:
-        return f"{indent}{type(node).__name__}"
+        add_line(type(node).__name__)
+
+    return "\n".join(lines)
+
 
 def code_to_ast(code: str) -> str:
     try:
@@ -56,6 +81,113 @@ def code_to_ast(code: str) -> str:
     
 def parsing(command: str) -> str:
     command = command.lower().strip()
+
+
+    # Print statement
+    if "print" in command:
+           # Special case: "print X N times"
+        m = re.search(r'print\s+(.+?)\s+(\d+)\s+times', command)
+        if m:
+         text, count = m.groups()
+         text = text.strip('"\'')  # Remove existing quotes if any
+         return f'print(",".join(["{text}"] * {count}))'
+        m = re.search(r'print\s+(.+)', command)
+        if m:
+            text = m.group(1)
+            if not text.startswith(("'", '"')):  # Add quotes if not string literal
+                text = f'"{text}"'
+            return f'print({text})'
+
+    # Arithmetic operations
+    if any(op in command for op in ["add", "subtract", "multiply", "divide"]):
+        m = re.search(r'(add|subtract|multiply|divide)\s+(-?\d+)\s+(?:and|from|by)?\s*(-?\d+)', command)
+        if m:
+            op, a, b = m.groups()
+            a, b = int(a), int(b)
+            if op == "add":
+                return f"result = {a} + {b}\nprint(result)"
+            elif op == "subtract":
+                return f"result = {a} - {b}\nprint(result)"
+            elif op == "multiply":
+                return f"result = {a} * {b}\nprint(result)"
+            elif op == "divide":
+                return f"result = {a} / {b}\nprint(result)"
+
+    # Palindrome check
+    if "palindrome" in command:
+        m = re.search(r'palindrome(?:\s+check)?\s+(?:for\s+)?(.+)', command)
+        if m:
+            text = m.group(1)
+            return f"text = '{text}'\nprint('Palindrome' if text == text[::-1] else 'Not Palindrome')"
+
+    # Armstrong number
+    if "armstrong" in command:
+        m = re.search(r'armstrong(?:\s+number)?(?:\s+check)?(?:\s+for)?\s*(\d+)', command)
+        if m:
+            num = int(m.group(1))
+            return (
+                f"num = {num}\n"
+                f"sum = sum(int(d)**3 for d in str(num))\n"
+                f"print('Armstrong' if num == sum else 'Not Armstrong')"
+            )
+
+    # Factorial
+    if "factorial" in command:
+        m = re.search(r'factorial\s+of\s+(\d+)', command)
+        if m:
+            n = int(m.group(1))
+            return (
+                f"n = {n}\n"
+                f"fact = 1\n"
+                f"for i in range(1, n+1):\n"
+                f"    fact *= i\n"
+                f"print(fact)"
+            )
+
+    # Prime number
+    if "prime" in command:
+        m = re.search(r'(?:is\s+)?(\d+)\s+(?:a\s+)?prime', command)
+        if m:
+            n = int(m.group(1))
+            return (
+                f"n = {n}\n"
+                f"if n < 2:\n"
+                f"    print('Not Prime')\n"
+                f"else:\n"
+                f"    for i in range(2, int(n**0.5)+1):\n"
+                f"        if n % i == 0:\n"
+                f"            print('Not Prime')\n"
+                f"            break\n"
+                f"    else:\n"
+                f"        print('Prime')"
+            )
+
+
+    # Search in array
+    if "search" in command and "array" in command:
+        m = re.search(r'search\s+(-?\d+)\s+in\s+array\s+(.+)', command)
+        if m:
+            target, arr_str = m.groups()
+            arr = list(map(int, re.findall(r'-?\d+', arr_str)))
+            return (
+                f"arr = {arr}\n"
+                f"target = {target}\n"
+                f"print('Found' if target in arr else 'Not Found')"
+            )
+
+    # Replace in array
+    if ("replace" in command or "update" in command) and "array" in command:
+        m = re.search(r'(?:replace|update)\s+(-?\d+)\s+(?:with|to)\s+(-?\d+)\s+in\s+array\s+(.+)', command)
+        if m:
+            old, new, arr_str = m.groups()
+            arr = list(map(int, re.findall(r'-?\d+', arr_str)))
+            return (
+                f"arr = {arr}\n"
+                f"arr = [{new} if x == {old} else x for x in arr]\n"
+                f"print(arr)"
+            )
+
+
 
     # If-Else Condition
     if "if" in command and "print" in command and "else" in command:
@@ -102,6 +234,51 @@ def parsing(command: str) -> str:
     elif "divide" in command:
         nums = list(map(int, re.findall(r'\d+', command)))
         return f"print({nums[0]} / {nums[1]})"
+    
+      # Modulo operation
+    if "modulo" in command:
+     match = re.search(r'find (\-?\d+)\s*(?:modulo|mod)\s*(\-?\d+)', command)
+     if match:
+        a, b = map(int, match.groups())
+        return (
+            f"result = {a} % {b}\n"
+            f"print('Result:', result)"
+        )
+     
+     #divisibility
+     
+    if "divisible by both" in command:
+       match = re.search(r'check if (\d+) is divisible by both (\d+) and (\d+)', command)
+    if match:
+        num, div1, div2 = map(int, match.groups())
+        return f"print({num} % {div1} == 0 and {num} % {div2} == 0)"
+
+    if re.search(r'print numbers starting from (\d+) up to (\d+)', command):
+      m = re.search(r'print numbers starting from (\d+) up to (\d+)', command)
+      start, end = map(int, m.groups())
+      return f"for i in range({start}, {end+1}):\n    print(i)"
+
+# Power operation
+    if "power" in command:
+     match = re.search(r'find (\-?\d+)\s*(?:to the power of|to the power|power)\s*(\-?\d+)', command)
+     if match:
+        base, exp = map(int, match.groups())
+        return (
+            f"result = {base} ** {exp}\n"
+            f"print('Result:', result)"
+        )
+    if re.search(r'(print|say|output) \'(.+?)\' (?:\d+|ten|five|six|seven|eight|nine|eleven|twelve) times?', command):
+     match = re.search(r'(?:print|say|output) \'(.+?)\' (\w+) times?', command)
+    if match:
+        text, count = match.groups()
+        num_words = {
+            'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4,
+            'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9,
+            'ten': 10, 'eleven': 11, 'twelve': 12
+        }
+        count = num_words.get(count, count)
+        return f"for _ in range({count}):\n    print('{text}')"
+
 
     # Print text multiple times
     if "print" in command and "times" in command:
@@ -118,8 +295,12 @@ def parsing(command: str) -> str:
 
     # Sort array
     if "sort" in command and "array" in command:
-        nums = list(map(int, re.findall(r'\d+', command)))
-        return f"arr = {nums}\narr.sort()\nprint(arr)"
+     nums = list(map(int, re.findall(r'\d+', command)))
+    # Defensive check: if no numbers found, handle gracefully
+     if not nums:
+        return "print('No numbers found to sort.')"
+     return f"arr = {nums}\narr.sort()\nprint(arr)"
+
 
     # Sort string
     if "sort" in command and "string" in command:
@@ -230,6 +411,17 @@ def parsing(command: str) -> str:
         num = int(re.search(r'\d+', command).group())
         return f"print({num} % 2 != 0)"
     
+    if re.search(r'if (.+?) print \'(.+?)\';? if (.+?) print \'(.+?)\'', command):
+     match = re.search(r'if (.+?) print \'(.+?)\';? if (.+?) print \'(.+?)\'', command)
+     cond1, out1, cond2, out2 = match.groups()
+     return (
+        f"if {cond1.strip()}:\n"
+        f"    print('{out1.strip()}')\n"
+        f"elif {cond2.strip()}:\n"
+        f"    print('{out2.strip()}')"
+    )
+
+    
     #factorial block
     if "factorial" in command:
         num = int(re.search(r'\d+', command).group())
@@ -296,11 +488,10 @@ def parsing(command: str) -> str:
         m = re.search(r'(?:replace|update) (-?\d+) (?:with|to) (-?\d+) in array (.+)', command)
         if m:
             old, new, arr_str = m.groups()
-            old, new = int(old), int(new)
             arr = list(map(int, re.findall(r'-?\d+', arr_str)))
             return (
                 f"arr = {arr}\n"
-                f"arr = [{new} if x == {old} else x for x in arr]\n"
+                f"arr = [ {new} if x == {old} else x for x in arr ]\n"
                 f"print(arr)"
             )
 
@@ -344,4 +535,4 @@ def parse_execute():
     })
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True)  
