@@ -105,6 +105,12 @@
     ul.ast-tree li.collapsed > ul {
       display: none;
     }
+
+    #fileList button {
+      margin: 0 5px;
+      padding: 5px 10px;
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
@@ -114,6 +120,8 @@
   </h1>
 
   <textarea id="input" rows="3" placeholder="Enter natural language instruction..."></textarea><br>
+  
+  <button onclick="startSpeechRecognition()">🎤 Speak</button>
   <button onclick="generateCode()">Generate & Execute</button>
 
   <div class="container">
@@ -126,12 +134,14 @@
       <h3>Output</h3>
       <pre id="output">Your output will appear here...</pre>
     </div>
-
+    
     <div class="section">
       <h3>AST</h3>
       <div id="ast" style="color: #470842;">AST will appear here...</div>
     </div>
   </div>
+
+ 
 
   <script>
     let latestCommand = "";
@@ -147,11 +157,17 @@
         },
         body: JSON.stringify({ command: command })
       })
-      .then(response => response.json())
+      .then(res => res.json())
       .then(data => {
-        document.getElementById("code").textContent = data.generated_code;
-        document.getElementById("output").textContent = data.output;
-        renderASTTree(data.ast);
+        document.getElementById("code").textContent = data.generated_code || "No code generated.";
+        document.getElementById("output").textContent = data.output || "No output.";
+        if (data.ast) {
+          renderASTTree(data.ast);
+        } else {
+          document.getElementById("ast").textContent = "No AST generated.";
+        }
+
+    
       })
       .catch(error => {
         document.getElementById("code").textContent = "Error generating code.";
@@ -161,53 +177,99 @@
     }
 
     function renderASTTree(astText) {
-      const lines = astText.split("\n");
-      const root = { label: "AST", children: [] };
+      if (!astText) {
+        document.getElementById("ast").textContent = "No AST data received.";
+        return;
+      }
+
+      const lines = astText.split('\n').filter(line => line.trim() !== '');
+      const root = { label: 'AST', children: [] };
       const stack = [{ node: root, indent: -1 }];
 
-      for (let line of lines) {
-        const indent = line.search(/\S/);
+      for (const line of lines) {
+        const indent = line.match(/^\s*/)[0].length;
         const label = line.trim();
-        const item = { label, children: [] };
+        const node = { label, children: [] };
 
-        while (stack.length && indent <= stack[stack.length - 1].indent) {
+        while (stack.length > 0 && indent <= stack[stack.length - 1].indent) {
           stack.pop();
         }
 
-        stack[stack.length - 1].node.children.push(item);
-        stack.push({ node: item, indent });
+        stack[stack.length - 1].node.children.push(node);
+        stack.push({ node, indent });
       }
 
-      const container = document.getElementById("ast");
-      container.innerHTML = "";
-      container.appendChild(buildTreeHTML(root.children[0]));
+      const container = document.getElementById('ast');
+      container.innerHTML = "<ul class='ast-tree'></ul>";
+      if (root.children.length > 0) {
+        container.querySelector('ul').appendChild(buildTreeHTML(root.children[0]));
+      } else {
+        container.textContent = "Empty AST.";
+      }
     }
 
     function buildTreeHTML(node) {
-      const li = document.createElement("li");
-      const span = document.createElement("span");
+      const li = document.createElement('li');
+      const span = document.createElement('span');
       span.textContent = node.label;
       li.appendChild(span);
 
-      if (node.children.length) {
-        li.classList.add("collapsible");
-        const ul = document.createElement("ul");
-        ul.classList.add("ast-tree");
-        for (let child of node.children) {
+      if (node.children.length > 0) {
+        li.classList.add('collapsible');
+        const ul = document.createElement('ul');
+        ul.classList.add('ast-tree');
+
+        for (const child of node.children) {
           ul.appendChild(buildTreeHTML(child));
         }
-        li.appendChild(ul);
 
-        li.addEventListener("click", (e) => {
+        li.appendChild(ul);
+        span.addEventListener('click', (e) => {
           e.stopPropagation();
-          li.classList.toggle("collapsed");
+          li.classList.toggle('collapsed');
         });
       }
 
       return li;
     }
-  </script>
 
+    function startSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("Sorry, your browser does not support Speech Recognition.");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.start();
+
+      recognition.onstart = () => {
+        console.log("Speech recognition started. Speak now.");
+      };
+
+      recognition.onresult = (event) => {
+        const speechResult = event.results[0][0].transcript;
+        console.log("Speech recognized: " + speechResult);
+
+        document.getElementById("input").value = speechResult;
+        generateCode();
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+        alert("Speech recognition error: " + event.error);
+      };
+
+      recognition.onend = () => {
+        console.log("Speech recognition ended.");
+      };
+    }
+
+   
+  </script>
 </body>
 </html>
-
