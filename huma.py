@@ -2,8 +2,7 @@ from flask import Flask, request, jsonify
 import re
 import io
 import contextlib
-import ast   
-
+import ast
 
 from flask_cors import CORS
 
@@ -82,6 +81,7 @@ def code_to_ast(code: str) -> str:
 def parsing(command: str) -> str:
     command = command.lower().strip()
 
+    
 
     # Print statement
     if "print" in command:
@@ -162,6 +162,18 @@ def parsing(command: str) -> str:
                 f"        print('Prime')"
             )
 
+    # Sort array
+    if "sort" in command and "array" in command:
+        m = re.search(r'sort\s+array\s+(.+?)(?:\s+in\s+(ascending|descending)\s+order)?', command)
+        if m:
+            arr_str, order = m.groups()
+            arr = list(map(int, re.findall(r'-?\d+', arr_str)))
+            reverse = order == "descending"
+            return (
+                f"arr = {arr}\n"
+                f"arr.sort(reverse={'True' if reverse else 'False'})\n"
+                f"print(arr)"
+            )
 
     # Search in array
     if "search" in command and "array" in command:
@@ -245,18 +257,18 @@ def parsing(command: str) -> str:
             f"print('Result:', result)"
         )
      
-     #divisibility
+    #divisibility
      
     if "divisible by both" in command:
-       match = re.search(r'check if (\d+) is divisible by both (\d+) and (\d+)', command)
-    if match:
-        num, div1, div2 = map(int, match.groups())
-        return f"print({num} % {div1} == 0 and {num} % {div2} == 0)"
+        match = re.search(r'check if (\d+) is divisible by both (\d+) and (\d+)', command)
+        if match:
+            num, div1, div2 = map(int, match.groups())
+            return f"print({num} % {div1} == 0 and {num} % {div2} == 0)"
 
     if re.search(r'print numbers starting from (\d+) up to (\d+)', command):
-      m = re.search(r'print numbers starting from (\d+) up to (\d+)', command)
-      start, end = map(int, m.groups())
-      return f"for i in range({start}, {end+1}):\n    print(i)"
+        m = re.search(r'print numbers starting from (\d+) up to (\d+)', command)
+        start, end = map(int, m.groups())
+        return f"for i in range({start}, {end+1}):\n    print(i)"
 
 # Power operation
     if "power" in command:
@@ -268,16 +280,16 @@ def parsing(command: str) -> str:
             f"print('Result:', result)"
         )
     if re.search(r'(print|say|output) \'(.+?)\' (?:\d+|ten|five|six|seven|eight|nine|eleven|twelve) times?', command):
-     match = re.search(r'(?:print|say|output) \'(.+?)\' (\w+) times?', command)
-    if match:
-        text, count = match.groups()
-        num_words = {
-            'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4,
-            'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9,
-            'ten': 10, 'eleven': 11, 'twelve': 12
-        }
-        count = num_words.get(count, count)
-        return f"for _ in range({count}):\n    print('{text}')"
+        match = re.search(r'(?:print|say|output) \'(.+?)\' (\w+) times?', command)
+        if match:
+            text, count = match.groups()
+            num_words = {
+                'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4,
+                'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9,
+                'ten': 10, 'eleven': 11, 'twelve': 12
+            }
+            count = num_words.get(count, count)
+            return f"for _ in range({count}):\n    print('{text}')"
 
 
     # Print text multiple times
@@ -295,12 +307,8 @@ def parsing(command: str) -> str:
 
     # Sort array
     if "sort" in command and "array" in command:
-     nums = list(map(int, re.findall(r'\d+', command)))
-    # Defensive check: if no numbers found, handle gracefully
-     if not nums:
-        return "print('No numbers found to sort.')"
-     return f"arr = {nums}\narr.sort()\nprint(arr)"
-
+        nums = list(map(int, re.findall(r'\d+', command)))
+        return f"arr = {nums}\narr.sort()\nprint(arr)"
 
     # Sort string
     if "sort" in command and "string" in command:
@@ -535,4 +543,4 @@ def parse_execute():
     })
 
 if __name__ == "__main__":
-    app.run(debug=True)  
+    app.run(debug=True)
