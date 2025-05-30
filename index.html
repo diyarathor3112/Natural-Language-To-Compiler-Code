@@ -7,7 +7,7 @@
     body {
       font-family: 'Segoe UI', sans-serif;
       background: linear-gradient(120deg, #ffffff, #9bd6cc);
-      color: white;
+      color: #333; /* changed from white to dark for readability */
       text-align: center;
       padding: 40px;
       margin: 0;
@@ -105,12 +105,6 @@
     ul.ast-tree li.collapsed > ul {
       display: none;
     }
-
-    #fileList button {
-      margin: 0 5px;
-      padding: 5px 10px;
-      font-size: 12px;
-    }
   </style>
 </head>
 <body>
@@ -141,135 +135,122 @@
     </div>
   </div>
 
- 
+<script>
+  let latestCommand = "";
 
-  <script>
-    let latestCommand = "";
+  function generateCode() {
+    const command = document.getElementById("input").value;
+    latestCommand = command;
 
-    function generateCode() {
-      const command = document.getElementById("input").value;
-      latestCommand = command;
+    fetch("http://127.0.0.1:5000/api/parse_execute", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ command: command })
+    })
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById("code").textContent = data.generated_code;
+      document.getElementById("output").textContent = data.output;
+      renderASTTree(data.ast);
+    })
+    .catch(error => {
+      document.getElementById("code").textContent = "Error generating code.";
+      document.getElementById("output").textContent = "Fetch failed: " + error;
+      document.getElementById("ast").textContent = "AST fetch failed.";
+    });
+  }
 
-      fetch("http://127.0.0.1:5000/api/parse_execute", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ command: command })
-      })
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("code").textContent = data.generated_code || "No code generated.";
-        document.getElementById("output").textContent = data.output || "No output.";
-        if (data.ast) {
-          renderASTTree(data.ast);
-        } else {
-          document.getElementById("ast").textContent = "No AST generated.";
-        }
+  function renderASTTree(astText) {
+    // console.log("Received AST Text:\n", astText); // Removed debug log
 
-    
-      })
-      .catch(error => {
-        document.getElementById("code").textContent = "Error generating code.";
-        document.getElementById("output").textContent = "Fetch failed: " + error;
-        document.getElementById("ast").textContent = "AST fetch failed.";
+    const lines = astText.split('\n').filter(line => line.trim() !== '');
+    const root = { label: 'AST', children: [] };
+    const stack = [{ node: root, indent: -1 }];
+
+    for (const line of lines) {
+      const indent = line.match(/^\s*/)[0].length;
+      const label = line.trim();
+      const node = { label, children: [] };
+
+      while (stack.length > 0 && indent <= stack[stack.length - 1].indent) {
+        stack.pop();
+      }
+
+      stack[stack.length - 1].node.children.push(node);
+      stack.push({ node, indent });
+    }
+
+    const container = document.getElementById('ast');
+    container.innerHTML = "<ul class='ast-tree'></ul>";
+    container.querySelector('ul').appendChild(buildTreeHTML(root.children[0]));
+  }
+
+  function buildTreeHTML(node) {
+    const li = document.createElement('li');
+    const span = document.createElement('span');
+    span.textContent = node.label;
+    li.appendChild(span);
+
+    if (node.children.length > 0) {
+      li.classList.add('collapsible');
+      const ul = document.createElement('ul');
+      ul.classList.add('ast-tree');
+
+      for (const child of node.children) {
+        ul.appendChild(buildTreeHTML(child));
+      }
+
+      li.appendChild(ul);
+      span.addEventListener('click', (e) => {
+        e.stopPropagation();
+        li.classList.toggle('collapsed');
       });
     }
 
-    function renderASTTree(astText) {
-      if (!astText) {
-        document.getElementById("ast").textContent = "No AST data received.";
-        return;
-      }
+    return li;
+  }
 
-      const lines = astText.split('\n').filter(line => line.trim() !== '');
-      const root = { label: 'AST', children: [] };
-      const stack = [{ node: root, indent: -1 }];
-
-      for (const line of lines) {
-        const indent = line.match(/^\s*/)[0].length;
-        const label = line.trim();
-        const node = { label, children: [] };
-
-        while (stack.length > 0 && indent <= stack[stack.length - 1].indent) {
-          stack.pop();
-        }
-
-        stack[stack.length - 1].node.children.push(node);
-        stack.push({ node, indent });
-      }
-
-      const container = document.getElementById('ast');
-      container.innerHTML = "<ul class='ast-tree'></ul>";
-      if (root.children.length > 0) {
-        container.querySelector('ul').appendChild(buildTreeHTML(root.children[0]));
-      } else {
-        container.textContent = "Empty AST.";
-      }
+  function startSpeechRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Sorry, your browser does not support Speech Recognition.");
+      return;
     }
 
-    function buildTreeHTML(node) {
-      const li = document.createElement('li');
-      const span = document.createElement('span');
-      span.textContent = node.label;
-      li.appendChild(span);
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
 
-      if (node.children.length > 0) {
-        li.classList.add('collapsible');
-        const ul = document.createElement('ul');
-        ul.classList.add('ast-tree');
+    recognition.start();
+    //jesi hum start krenge onstart yaha se shuru hoga
+    recognition.onstart = () => {
+      console.log("Speech recognition started. Speak now.");
+    };
+    /// jesi hum bolna bnd krenge yeh function ka work shuru hoga
+    recognition.onresult = (event) => {
+      const speechResult = event.results[0][0].transcript;// audio to script
+      console.log("Speech recognized: " + speechResult);
 
-        for (const child of node.children) {
-          ul.appendChild(buildTreeHTML(child));
-        }
+      const inputArea = document.getElementById("input");
+      inputArea.value = speechResult;// ab joh input area h jaha pr hum code likhre the
 
-        li.appendChild(ul);
-        span.addEventListener('click', (e) => {
-          e.stopPropagation();
-          li.classList.toggle('collapsed');
-        });
-      }
+      // Optionally auto-run generateCode after speech input
+      generateCode();
+    };
+     /// baki yeh error handling ka kaam 
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      alert("Speech recognition error: " + event.error);
+    };
+     // agar koi voice disturbance h toh woh yaha pr error dikhaega
+    recognition.onend = () => {
+      console.log("Speech recognition ended.");
+    };
+  }
+</script>
 
-      return li;
-    }
-
-    function startSpeechRecognition() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        alert("Sorry, your browser does not support Speech Recognition.");
-        return;
-      }
-
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'en-US';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-
-      recognition.start();
-
-      recognition.onstart = () => {
-        console.log("Speech recognition started. Speak now.");
-      };
-
-      recognition.onresult = (event) => {
-        const speechResult = event.results[0][0].transcript;
-        console.log("Speech recognized: " + speechResult);
-
-        document.getElementById("input").value = speechResult;
-        generateCode();
-      };
-
-      recognition.onerror = (event) => {
-        console.error("Speech recognition error:", event.error);
-        alert("Speech recognition error: " + event.error);
-      };
-
-      recognition.onend = () => {
-        console.log("Speech recognition ended.");
-      };
-    }
-
-   
-  </script>
 </body>
 </html>
