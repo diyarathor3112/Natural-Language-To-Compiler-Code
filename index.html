@@ -2,26 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NL to Python Code Executor</title>
   <style>
+    /* === BASE STYLES === */
     body {
       font-family: 'Segoe UI', sans-serif;
       background: linear-gradient(120deg, #ffffff, #9bd6cc);
-      color: #333; /* changed from white to dark for readability */
+      color: #333;
       text-align: center;
-      padding: 40px;
+      padding: 20px;
       margin: 0;
     }
 
+    h1 {
+      color: #470842; 
+      font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+      margin-bottom: 20px;
+    }
+
     textarea, input {
-      width: 60%;
+      width: 90%;
+      max-width: 600px;
       padding: 12px;
       margin: 10px 0;
       border: none;
       border-radius: 10px;
       font-size: 16px;
       font-family: monospace;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     }
 
     button {
@@ -32,14 +41,18 @@
       border-radius: 10px;
       cursor: pointer;
       font-weight: bold;
-      transition: background 0.3s;
+      transition: all 0.3s;
       margin: 5px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
     button:hover {
       background: #f0f0f0;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
     }
 
+    /* === CONTAINER & SECTIONS === */
     .container {
       display: flex;
       justify-content: center;
@@ -49,14 +62,16 @@
     }
 
     .section {
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.85);
       backdrop-filter: blur(10px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
       padding: 20px;
       border-radius: 16px;
-      width: 30%;
+      width: 90%;
+      max-width: 400px;
       min-width: 280px;
       transition: transform 0.2s ease;
+      margin-bottom: 20px;
     }
 
     .section:hover {
@@ -64,83 +79,290 @@
     }
 
     .section h3 {
-      margin-bottom: 10px;
+      margin-bottom: 15px;
       color: #0a0644;
       border-bottom: 2px solid rgb(11, 3, 24);
       padding-bottom: 5px;
     }
 
+    /* === CODE & OUTPUT STYLES === */
     pre {
       background: #1c1c27;
-      padding: 10px;
+      padding: 15px;
       border-radius: 8px;
       color: #00ffcc;
       overflow-x: auto;
       white-space: pre-wrap;
+      text-align: left;
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 14px;
     }
 
+    /* === AST TREE STYLES === */
     ul.ast-tree {
       text-align: left;
       list-style: none;
-      padding-left: 20px;
+      padding-left: 15px;
       font-family: monospace;
       color: #101111;
+      max-height: 300px;
+      overflow-y: auto;
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
     }
 
     ul.ast-tree li {
       cursor: default;
       margin-bottom: 5px;
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+
+    ul.ast-tree li:hover {
+      background: #e9ecef;
     }
 
     ul.ast-tree li.collapsible > span::before {
       content: "▼ ";
       cursor: pointer;
+      font-size: 0.8em;
     }
 
     ul.ast-tree li.collapsed > span::before {
       content: "▶ ";
       cursor: pointer;
+      font-size: 0.8em;
     }
 
     ul.ast-tree li.collapsed > ul {
       display: none;
     }
+
+    /* === SUGGESTIONS STYLES === */
+    #suggestions {
+      width: 90%;
+      max-width: 600px;
+      margin: 0 auto;
+      text-align: left;
+      display: none;
+      background: white;
+      border-radius: 0 0 8px 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      position: absolute;
+      z-index: 1000;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    #suggestions div {
+      padding: 10px;
+      cursor: pointer;
+      border-bottom: 1px solid #eee;
+      transition: background 0.2s;
+    }
+
+    #suggestions div:hover {
+      background: #f0f0f0;
+    }
+
+    /* === HISTORY STYLES === */
+    #historyList {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      text-align: left;
+      max-height: 200px;
+      overflow-y: auto;
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    #historyList li {
+      padding: 8px;
+      margin-bottom: 5px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+      border-left: 3px solid #6a11cb;
+    }
+
+    #historyList li:hover {
+      background: #e9ecef;
+    }
+
+    #historyList small {
+      color: #6c757d;
+      font-size: 0.7em;
+    }
+
+    /* === LOADING SPINNER === */
+    .spinner-hidden { 
+      display: none; 
+    }
+    
+    .spinner-visible { 
+      display: inline-block;
+      animation: spin 1s linear infinite;
+      margin-left: 5px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* === RESPONSIVE DESIGN === */
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .section {
+        width: 95%;
+        margin-bottom: 20px;
+      }
+      
+      textarea, input {
+        width: 95%;
+      }
+      
+      h1 {
+        font-size: 1.5rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 10px;
+      }
+      
+      button {
+        padding: 10px 15px;
+        font-size: 14px;
+      }
+      
+      .section {
+        padding: 15px;
+      }
+      
+      pre {
+        padding: 10px;
+        font-size: 12px;
+      }
+    }
   </style>
 </head>
 <body>
 
-  <h1 style="color: #470842; font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;">
-    NATURAL LANGUAGE COMPILER
-  </h1>
+  <h1>NATURAL LANGUAGE COMPILER</h1>
 
-  <textarea id="input" rows="3" placeholder="Enter natural language instruction..."></textarea><br>
+  <textarea id="input" rows="3" placeholder="Enter natural language instruction (e.g., 'print hello 5 times')"></textarea><br>
   
   <button onclick="startSpeechRecognition()">🎤 Speak</button>
-  <button onclick="generateCode()">Generate & Execute</button>
+  <button onclick="generateCode()" id="generateBtn">
+    <span id="btnText">Generate & Execute</span>
+    <span id="spinner" class="spinner-hidden">⌛</span>
+  </button>
+
+  <!-- Suggestions Box -->
+  <div id="suggestions"></div>
 
   <div class="container">
     <div class="section">
       <h3>Generated Python Code</h3>
-      <pre id="code">Your code will appear here...</pre>
+      <pre id="code"># Your generated code will appear here...</pre>
     </div>
 
     <div class="section">
       <h3>Output</h3>
-      <pre id="output">Your output will appear here...</pre>
+      <pre id="output"># Program output will appear here...</pre>
     </div>
     
     <div class="section">
-      <h3>AST</h3>
-      <div id="ast" style="color: #470842;">AST will appear here...</div>
+      <h3>AST (Abstract Syntax Tree)</h3>
+      <div id="ast" style="color: #470842;"># AST visualization will appear here...</div>
+    </div>
+    
+    <div class="section">
+      <h3>History 
+        <button onclick="clearHistory()" style="font-size:12px; padding:3px 8px;">Clear</button>
+      </h3>
+      <ul id="historyList"></ul>
     </div>
   </div>
 
 <script>
   let latestCommand = "";
+  let commandHistory = JSON.parse(localStorage.getItem('nlpHistory')) || [];
+  
+  // Common commands for suggestions
+  const commonCommands = [
+    "print hello 5 times",
+    "add 5 and 10",
+    "check if 7 is prime",
+    "find factorial of 5",
+    "sort array [3,1,4,2]",
+    "print numbers from 1 to 10",
+    "what is 15 divided by 3",
+    "check if 121 is palindrome",
+    "find length of string hello"
+  ];
 
+  // Initialize on page load
+  window.onload = function() {
+    renderHistory();
+    document.getElementById('input').addEventListener('input', showSuggestions);
+    document.getElementById('input').focus();
+  };
+
+  // Show command suggestions
+  function showSuggestions() {
+    const input = document.getElementById('input').value.toLowerCase();
+    if(input.length < 1) {
+      document.getElementById('suggestions').style.display = 'none';
+      return;
+    }
+    
+    const matches = commonCommands.filter(cmd => 
+      cmd.toLowerCase().includes(input)
+    );
+    
+    const suggestionsDiv = document.getElementById('suggestions');
+    if(matches.length > 0) {
+      suggestionsDiv.innerHTML = matches.map(cmd => 
+        `<div onclick="selectSuggestion('${cmd}')">${cmd}</div>`
+      ).join('');
+      suggestionsDiv.style.display = 'block';
+    } else {
+      suggestionsDiv.style.display = 'none';
+    }
+  }
+
+  // Select a suggestion
+  function selectSuggestion(cmd) {
+    document.getElementById('input').value = cmd;
+    document.getElementById('suggestions').style.display = 'none';
+    generateCode();
+  }
+
+  // Generate code from natural language
   function generateCode() {
     const command = document.getElementById("input").value;
+    if (!command.trim()) {
+      alert("Please enter a command first!");
+      return;
+    }
+    
     latestCommand = command;
+    
+    // Show loading state
+    document.getElementById("btnText").textContent = "Processing...";
+    document.getElementById("spinner").className = "spinner-visible";
+    document.getElementById("generateBtn").disabled = true;
 
     fetch("http://127.0.0.1:5000/api/parse_execute", {
       method: "POST",
@@ -154,17 +376,24 @@
       document.getElementById("code").textContent = data.generated_code;
       document.getElementById("output").textContent = data.output;
       renderASTTree(data.ast);
+      saveToHistory(command, data.generated_code);
     })
     .catch(error => {
-      document.getElementById("code").textContent = "Error generating code.";
-      document.getElementById("output").textContent = "Fetch failed: " + error;
-      document.getElementById("ast").textContent = "AST fetch failed.";
+      document.getElementById("code").textContent = "# Error: Could not connect to server";
+      document.getElementById("output").textContent = "# Make sure the Python backend is running on port 5000";
+      document.getElementById("ast").textContent = "# AST visualization unavailable";
+      console.error("Error:", error);
+    })
+    .finally(() => {
+      // Reset button state
+      document.getElementById("btnText").textContent = "Generate & Execute";
+      document.getElementById("spinner").className = "spinner-hidden";
+      document.getElementById("generateBtn").disabled = false;
     });
   }
 
+  // Render AST tree
   function renderASTTree(astText) {
-    // console.log("Received AST Text:\n", astText); // Removed debug log
-
     const lines = astText.split('\n').filter(line => line.trim() !== '');
     const root = { label: 'AST', children: [] };
     const stack = [{ node: root, indent: -1 }];
@@ -184,19 +413,24 @@
 
     const container = document.getElementById('ast');
     container.innerHTML = "<ul class='ast-tree'></ul>";
-    container.querySelector('ul').appendChild(buildTreeHTML(root.children[0]));
+    
+    if (root.children.length > 0) {
+      container.querySelector('ul').appendChild(buildTreeHTML(root.children[0]));
+    } else {
+      container.textContent = astText;
+    }
   }
 
+  // Build AST tree HTML
   function buildTreeHTML(node) {
     const li = document.createElement('li');
     const span = document.createElement('span');
     span.textContent = node.label;
     li.appendChild(span);
 
-    if (node.children.length > 0) {
+    if (node.children && node.children.length > 0) {
       li.classList.add('collapsible');
       const ul = document.createElement('ul');
-      ul.classList.add('ast-tree');
 
       for (const child of node.children) {
         ul.appendChild(buildTreeHTML(child));
@@ -212,6 +446,7 @@
     return li;
   }
 
+  // Speech recognition
   function startSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -225,30 +460,84 @@
     recognition.maxAlternatives = 1;
 
     recognition.start();
-    //jesi hum start krenge onstart yaha se shuru hoga
+    
     recognition.onstart = () => {
       console.log("Speech recognition started. Speak now.");
+      document.getElementById("input").placeholder = "Listening...";
     };
-    /// jesi hum bolna bnd krenge yeh function ka work shuru hoga
+    
     recognition.onresult = (event) => {
-      const speechResult = event.results[0][0].transcript;// audio to script
+      const speechResult = event.results[0][0].transcript;
       console.log("Speech recognized: " + speechResult);
 
       const inputArea = document.getElementById("input");
-      inputArea.value = speechResult;// ab joh input area h jaha pr hum code likhre the
-
-      // Optionally auto-run generateCode after speech input
+      inputArea.value = speechResult;
+      document.getElementById("input").placeholder = "Enter natural language instruction...";
+      
       generateCode();
     };
-     /// baki yeh error handling ka kaam 
+     
     recognition.onerror = (event) => {
       console.error("Speech recognition error:", event.error);
+      document.getElementById("input").placeholder = "Enter natural language instruction...";
       alert("Speech recognition error: " + event.error);
     };
-     // agar koi voice disturbance h toh woh yaha pr error dikhaega
+     
     recognition.onend = () => {
       console.log("Speech recognition ended.");
+      document.getElementById("input").placeholder = "Enter natural language instruction...";
     };
+  }
+
+  // Save command to history
+  function saveToHistory(command, code) {
+    // Check if already in history
+    const existingIndex = commandHistory.findIndex(item => item.command === command);
+    if (existingIndex !== -1) {
+      commandHistory.splice(existingIndex, 1);
+    }
+    
+    commandHistory.unshift({
+      command, 
+      code: code.substring(0, 50) + (code.length > 50 ? "..." : ""), 
+      timestamp: new Date().toLocaleTimeString()
+    });
+    
+    // Keep only last 10 commands
+    commandHistory = commandHistory.slice(0, 10);
+    localStorage.setItem('nlpHistory', JSON.stringify(commandHistory));
+    renderHistory();
+  }
+
+  // Render history list
+  function renderHistory() {
+    const list = document.getElementById('historyList');
+    list.innerHTML = '';
+    
+    if (commandHistory.length === 0) {
+      list.innerHTML = '<li style="cursor:default; color:#6c757d; border-left:3px solid #ccc;">No history yet</li>';
+      return;
+    }
+    
+    commandHistory.forEach(item => {
+      const li = document.createElement('li');
+      li.innerHTML = `<small>[${item.timestamp}]</small> ${item.command}`;
+      li.title = item.code;
+      li.onclick = () => {
+        document.getElementById('input').value = item.command;
+        generateCode();
+      };
+      list.appendChild(li);
+    });
+  }
+
+  // Clear history
+  function clearHistory() {
+    if (confirm("Are you sure you want to clear all history?")) {
+      localStorage.removeItem('nlpHistory');
+      commandHistory = [];
+      renderHistory();
+    }
   }
 </script>
 
